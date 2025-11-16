@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="ms-MY">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Kemahiran Pemulihan: Wang & Masa (Lanjutan)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { box-sizing: border-box; }
+    .activity-card { min-height: 450px; }
+    .number-card, .item-card, .money-token { 
+      transition: all .3s ease; 
+      cursor: pointer; 
+    }
+    .number-card:hover, .item-card:hover, .money-token:hover { 
+      transform: scale(1.05); 
+    }
+    .dragging { opacity: .5; transform: rotate(5deg); }
+
+    /* Drop zone */
+    .drop-zone {
+      border: 2px dashed #cbd5e1;
+      transition: all .3s ease;
+      min-width: 80px;
+      min-height: 80px;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    .drop-zone.drag-over { border-color: #3b82f6; background-color: #eff6ff; }
+
+    /* Animasi */
+    @keyframes shake {
+      0% { transform: translateX(0); } 25% { transform: translateX(-5px); }
+      50% { transform: translateX(5px); } 75% { transform: translateX(-5px); }
+      100% { transform: translateX(0); }
+    }
+    .shake { animation: shake 0.5s ease; }
+
+    /* Status */
+    .drop-zone-filled, .choice-correct {
+      border-style: solid;
+      border-color: #4ade80 !important;
+      background-color: #f0fdf4 !important;
+    }
+    .choice-wrong {
+      border-color: #f87171 !important;
+      background-color: #fef2f2 !important;
+    }
+    .choice-done {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    /* Token Wang */
+    .money-token {
+      cursor: move;
+      background-color: #f0fdf4;
+      border: 2px solid #22c55e;
+      color: #166534;
+      font-weight: bold;
+      padding: 0.75rem 1.25rem;
+      border-radius: 0.5rem;
+      font-size: 1.1rem;
+    }
+    .money-token.note-50 { background-color: #cffafe; border-color: #06b6d4; color: #0e7490; }
+    .money-token.note-20 { background-color: #fef9c3; border-color: #eab308; color: #854d0e; }
+    .money-token.note-10 { background-color: #fee2e2; border-color: #ef4444; color: #991b1b; }
+    .money-token.note-5 { background-color: #f0fdf4; border-color: #22c55e; color: #166534; }
+    .money-token.note-1 { background-color: #eef2ff; border-color: #4f46e5; color: #3730a3; }
+    .money-token.coin { background-color: #fef3c7; border-color: #d97706; color: #92400e; font-size: 0.9rem; padding: 0.5rem 1rem;}
+
+    /* === CSS JAM INTERAKTIF === */
+    .clock-face {
+      width: 250px;
+      height: 250px;
+      border: 8px solid #6366f1;
+      border-radius: 50%;
+      background-color: #fafafa;
+      position: relative;
+      margin: 1rem auto;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    .clock-center {
+      width: 12px;
+      height: 12px;
+      background: #333;
+      border-radius: 50%;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 10;
+    }
+    .clock-hand {
+      position: absolute;
+      bottom: 50%;
+      left: 50%;
+      transform-origin: bottom center;
+      border-radius: 4px;
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1.5); /* Efek 'spring' */
+    }
+    #clock-hand-hour {
+      width: 8px;
+      height: 70px; /* 70px from center */
+      background: #4f46e5;
+      transform: translateX(-50%) rotate(0deg);
+    }
+    #clock-hand-min {
+      width: 6px;
+      height: 100px; /* 100px from center */
+      background: #333;
+      transform: translateX(-50%) rotate(0deg);
+    }
+    /* Nombor pada jam */
+    .clock-face .number {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      text-align: center;
+      font-weight: bold;
+      font-size: 1.2rem;
+      color: #333;
+    }
+    .clock-face .n12 { transform: translateY(10px); }
+    .clock-face .n3 { transform: translateX(105px) translateY(115px); }
+    .clock-face .n6 { transform: translateY(220px); }
+    .clock-face .n9 { transform: translateX(-105px) translateY(115px); }
+    /* ========================== */
+  </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-purple-50 min-h-full">
+
+  <div class="bg-yellow-100 border-b-4 border-yellow-300 p-4 shadow-sm sticky top-0 z-10">
+    <div class="max-w-6xl mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <span class="text-2xl">💡</span>
+        <span id="info-text" class="text-lg font-semibold text-gray-800">
+          Pilih aktiviti untuk menguji kemahiran lanjutan!
+        </span>
+      </div>
+      <button id="speak-btn"
+              class="bg-yellow-300 hover:bg-yellow-400 text-yellow-800 font-bold py-2 px-4 rounded-full text-xl transition-colors duration-200"
+              onclick="speakInfo()">
+        🔊
+      </button>
+    </div>
+  </div>
+
+  <div class="max-w-6xl mx-auto p-6">
+    <div class="bg-white rounded-xl shadow-lg p-6 mb-6 activity-card flex items-center justify-center">
+      <div id="activity-content" class="text-center w-full">
+        <div class="py-16">
+          <div class="text-6xl mb-4">🏦</div>
+          <h2 class="text-3xl font-bold text-gray-800 mb-4">
+            Kemahiran Wang & Masa (Lanjutan)
+          </h2>
+          <p class="text-xl text-gray-600 mb-8">
+            3 aktiviti wang dan 2 aktiviti masa.
+          </p>
+          <div class="text-4xl">👇</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-lg p-6">
+      <h3 class="text-2xl font-bold text-gray-800 mb-4 text-center">Pilih Aktiviti</h3>
+      <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
+        <button onclick="loadActivity(1)"
+                class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg text-lg transition-colors duration-200">
+          1. Kira Baki Ringkas
+        </button>
+        <button onclick="loadActivity(2)"
+                class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg text-lg transition-colors duration-200">
+          2. Jam: Masa Tamat
+        </button>
+        <button onclick="loadActivity(3)"
+                class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-4 rounded-lg text-lg transition-colors duration-200">
+          3. Jam: Masa Mula
+        </button>
+        <button onclick="loadActivity(4)"
+                class="bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-4 rounded-lg text-lg transition-colors duration-200">
+          4. Cukup Wang?
+        </button>
+        <button onclick="loadActivity(5)"
+                class="bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-4 rounded-lg text-lg transition-colors duration-200">
+          5. Simulasi Beri Baki
+        </button>
+      </div>
+
+      <div class="flex justify-center gap-4">
+        <button onclick="clearActivity()" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-6 rounded-lg text-lg transition-colors duration-200">
+          🧹 Bersih
+        </button>
+        <button onclick="nextActivity()" class="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-6 rounded-lg text-lg transition-colors duration-200">
+          ➡️ Seterusnya
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentActivity = 0;
+    let ttsEnabled = false;
+    let currentInfo = "Pilih aktiviti untuk mula belajar!";
+    let draggedElement = null;
+
+    // State untuk aktiviti
+    window.bakiGame = {}; // Untuk Aktiviti 5
+    window.clockGame = {}; // Untuk Aktiviti 2 & 3
+
+    /* ====== TTS ====== */
+    function speak(text) {
+      if (!ttsEnabled) return;
+      if (!('speechSynthesis' in window)) return;
+      window.speechSynthesis.cancel();
+      setTimeout(() => {
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = 'ms-MY';
+        u.rate = 0.9; u.pitch = 1.05;
+        const voices = window.speechSynthesis.getVoices();
+        const ms = voices.find(v => v.lang === 'ms-MY' || v.lang?.startsWith('ms'));
+        if (ms) u.voice = ms;
+        window.speechSynthesis.speak(u);
+      }, 100);
+    }
+    function setInfo(text) { currentInfo = text; document.getElementById('info-text').textContent = text; }
+    function speakInfo() {
+      if (!ttsEnabled) {
+        ttsEnabled = true;
+        const btn = document.getElementById('speak-btn');
+        btn.classList.add('bg-green-300', 'hover:bg-green-400');
+        btn.classList.remove('bg-yellow-300', 'hover:bg-yellow-400');
+      }
+      speak(currentInfo);
+    }
+
+    /* ====== DnD helpers ====== */
+    function dragStart(e) { draggedElement = e.target; e.target.classList.add('dragging'); }
+    function dragEnd(e) { 
+      if(e.target) e.target.classList.remove('dragging'); 
+      document.querySelectorAll('.drop-zone').forEach(z=>z.classList.remove('drag-over')); 
+    }
+    function allowDrop(e) { e.preventDefault(); if (e.currentTarget.classList.contains('drop-zone')) e.currentTarget.classList.add('drag-over'); }
+    function dragLeave(e) { if (e.currentTarget.classList.contains('drop-zone')) e.currentTarget.classList.remove('drag-over'); }
+    const formatMoney = (num) => `RM ${parseFloat(num).toFixed(2)}`;
+
+    /* ====== Router ====== */
+    function loadActivity(n) {
+      currentActivity = n;
+      const content = document.getElementById('activity-content');
+      if (n === 1) return loadKiraBakiActivity(content);
+      if (n === 2) return loadMasaTamatActivity(content);
+      if (n === 3) return loadMasaMulaActivity(content);
+      if (n === 4) return loadCukupWangAdvancedActivity(content);
+      if (n === 5) return loadSimulasiBeriBakiActivity(content);
+    }
+
+    /* ====== Aktiviti 1: Kira Baki Ringkas (WANG) ====== */
+    function loadKiraBakiActivity(content) {
+      setInfo("Harga barang RM 13.00. Anda bayar RM 20.00. Klik baki yang betul.");
+      const options = [
+        { value: 5, text: "RM 5.00" }, { value: 7, text: "RM 7.00" }, { value: 10, text: "RM 10.00" }
+      ];
+      const correct = 7;
+      content.innerHTML = `
+        <h3 class="text-2xl font-bold text-blue-600 mb-6">1. Kira Baki Ringkas</h3>
+        <div class="space-y-4 text-center">
+          <div class="text-2xl font-semibold">Harga Barang: <span class="text-blue-700">RM 13.00</span></div>
+          <div class="text-2xl font-semibold">Wang Dibayar: <span class="text-blue-700">RM 20.00</span></div>
+          <div class="text-2xl font-bold mt-6">Berapakah bakinya?</div>
+        </div>
+        <div id="choices-container" class="flex flex-wrap justify-center gap-4 mt-6">
+          ${options.map(opt => `
+            <button class="number-card bg-blue-100 hover:bg-blue-200 border-2 border-blue-300 rounded-xl p-6 text-center text-3xl font-bold text-blue-800 w-48"
+                    onclick="clickBaki(event, ${opt.value}, ${correct})">
+              ${opt.text}
+            </button>
+          `).join('')}
+        </div>`;
+    }
+    function clickBaki(e, answer, correct) {
+      const el = e.currentTarget;
+      document.querySelectorAll('#choices-container button').forEach(b => {
+        b.classList.remove('choice-correct', 'choice-wrong', 'shake');
+        b.disabled = true;
+      });
+      if (answer === correct) {
+        const msg = `Betul! RM 20 tolak RM 13 ialah RM ${correct}.00.`;
+        setInfo(msg); speak(msg);
+        el.classList.add('choice-correct');
+      } else {
+        const msg = `Hampir tepat. Baki yang betul ialah RM ${correct}.00.`;
+        setInfo(msg); speak(msg);
+        el.classList.add('choice-wrong', 'shake');
+        document.querySelector(`#choices-container button[onclick*="${correct}, ${correct}"]`).classList.add('choice-correct');
+      }
+    }
+
+    /* ====== (BARU) Helper Jam Interaktif ====== */
+    function updateClockFace(hour, min) {
+      const hourEl = document.getElementById('clock-hand-hour');
+      const minEl = document.getElementById('clock-hand-min');
+      if (!hourEl || !minEl) return;
+      // 1 min = 6 darjah. 1 jam = 30 darjah.
+      const minDeg = min * 6;
+      const hourDeg = (hour % 12) * 30 + min * 0.5; // 0.5 darjah setiap minit
+      hourEl.style.transform = `translateX(-50%) rotate(${hourDeg}deg)`;
+      minEl.style.transform = `translateX(-50%) rotate(${minDeg}deg)`;
+    }
+    // Fungsi untuk menggerakkan jam
+    function clockClickHandler(mode, amount) {
+      if (window.clockGame.done) return;
+      const [amt, unit] = amount.split(' ');
+      let { hour, min, targetHour, targetMin } = window.clockGame;
+
+      if (unit === 'jam') {
+        hour = (mode === 'tambah') ? hour + parseInt(amt) : hour - parseInt(amt);
+      } else if (unit === 'min') {
+        min = (mode === 'tambah') ? min + parseInt(amt) : min - parseInt(amt);
+        // Handle minit (cth: 0 + 30 = 30, 30 + 30 = 60 -> jadi 1 jam 0 minit)
+        if (min >= 60) { hour++; min -= 60; }
+        if (min < 0) { hour--; min += 60; }
+      }
+      
+      // Kitar jam (24j)
+      if (hour > 12) hour -= 12;
+      if (hour === 0) hour = 12;
+      if (hour < 0) hour += 12;
+
+      window.clockGame.hour = hour;
+      window.clockGame.min = min;
+      updateClockFace(hour, min);
+
+      // Semak jawapan
+      if (hour === targetHour && min === targetMin) {
+        window.clockGame.done = true;
+        document.getElementById('clock-face').classList.add('choice-correct');
+        document.querySelectorAll('#clock-controls button').forEach(b => b.classList.add('choice-done'));
+        const msg = `Betul! Masa sekarang ialah pukul ${targetHour}${targetMin > 0 ? ` ${targetMin}` : ''}.`;
+        setInfo(msg); speak(msg);
+      } else {
+        const msg = `Sekarang pukul ${hour}${min > 0 ? ` ${min}` : ''}.`;
+        setInfo(msg); speak(msg);
+      }
+    }
+    // HTML untuk jam
+    const clockHTML = `
+      <div id="clock-face" class="clock-face">
+        <div classs="number n12">12</div><div classs="number n3">3</div>
+        <div classs="number n6">6</div><div classs="number n9">9</div>
+        <div class="clock-center"></div>
+        <div id="clock-hand-hour" class="clock-hand"></div>
+        <div id="clock-hand-min" class="clock-hand"></div>
+      </div>
+    `;
+
+    /* ====== (BARU) Aktiviti 2: Jam Interaktif: Masa Tamat (MASA) ====== */
+    function loadMasaTamatActivity(content) {
+      setInfo("Masa mula 2:00. Tempoh 3 jam 30 minit. Klik butang untuk cari masa tamat.");
+      // Mula 2:00. Tempoh 3j 30m. Tamat 5:30
+      window.clockGame = {
+        hour: 2, min: 0,
+        targetHour: 5, targetMin: 30,
+        mode: 'tambah', done: false
+      };
+      
+      content.innerHTML = `
+        <h3 class="text-2xl font-bold text-green-600 mb-4">2. Jam: Masa Tamat (Tambah)</h3>
+        <div class="text-center mb-4 p-4 bg-green-100 border-2 border-green-300 rounded-lg">
+          <div class="text-xl font-semibold">Masa Mula: 2:00</div>
+          <div class="text-2xl font-bold text-green-800 mt-1">Tempoh: 3 jam 30 minit</div>
+        </div>
+        ${clockHTML}
+        <div class="text-center text-xl font-bold mt-2">Pukul berapakah ia tamat?</div>
+        <div id="clock-controls" class="flex flex-wrap justify-center gap-4 mt-4">
+          <button class="number-card bg-green-100 hover:bg-green-200 border-2 border-green-300 rounded-xl p-4 text-xl font-bold"
+                  onclick="clockClickHandler('tambah', '1 jam')">
+            + 1 Jam
+          </button>
+          <button class="number-card bg-green-100 hover:bg-green-200 border-2 border-green-300 rounded-xl p-4 text-xl font-bold"
+                  onclick="clockClickHandler('tambah', '30 min')">
+            + 30 Minit
+          </button>
+        </div>
+      `;
+      // Set jam ke masa mula
+      setTimeout(() => updateClockFace(2, 0), 50);
+    }
+
+    /* ====== (BARU) Aktiviti 3: Jam Interaktif: Masa Mula (MASA) ====== */
+    function loadMasaMulaActivity(content) {
+      setInfo("Masa tamat 5:00. Tempoh 2 jam. Klik butang untuk cari masa mula.");
+      // Tamat 5:00. Tempoh 2 jam. Mula 3:00
+      window.clockGame = {
+        hour: 5, min: 0,
+        targetHour: 3, targetMin: 0,
+        mode: 'tolak', done: false
+      };
+
+      content.innerHTML = `
+        <h3 class="text-2xl font-bold text-purple-600 mb-4">3. Jam: Masa Mula (Tolak)</h3>
+        <div class="text-center mb-4 p-4 bg-purple-100 border-2 border-purple-300 rounded-lg">
+          <div class="text-xl font-semibold">Masa Tamat: 5:00</div>
+          <div class="text-2xl font-bold text-purple-800 mt-1">Tempoh: 2 jam</div>
+        </div>
+        ${clockHTML}
+        <div class="text-center text-xl font-bold mt-2">Pukul berapakah ia bermula?</div>
+        <div id="clock-controls" class="flex flex-wrap justify-center gap-4 mt-4">
+          <button class="number-card bg-purple-100 hover:bg-purple-200 border-2 border-purple-300 rounded-xl p-4 text-xl font-bold"
+                  onclick="clockClickHandler('tolak', '1 jam')">
+            - 1 Jam
+          </button>
+          <button class="number-card bg-purple-100 hover:bg-purple-200 border-2 border-purple-300 rounded-xl p-4 text-xl font-bold"
+                  onclick="clockClickHandler('tolak', '30 min')">
+            - 30 Minit
+          </button>
+        </div>
+      `;
+      // Set jam ke masa tamat
+      setTimeout(() => updateClockFace(5, 0), 50);
+    }
+
+
+    /* ====== Aktiviti 4: Cukup Wang (Lanjutan) (WANG) ====== */
+    function loadCukupWangAdvancedActivity(content) {
+      const wallet = 50.00;
+      const price = 48.50;
+      setInfo(`Dompet anda ada ${formatMoney(wallet)}. Seret wang yang CUKUP untuk membayar barang berharga ${formatMoney(price)}.`);
+      const options = [
+        { value: 20, text: "RM 20.00", isEnough: false },
+        { value: 50, text: "RM 50.00", isEnough: true },
+      ];
+      content.innerHTML = `
+        <h3 class="text-2xl font-bold text-orange-600 mb-6">4. Cukup Wang?</h3>
+        <div class="text-center mb-6 p-4 bg-orange-100 border-2 border-orange-300 rounded-lg">
+          <span class="text-2xl font-bold text-orange-800">Dompet Saya: ${formatMoney(wallet)}</span>
+        </div>
+        <div class="text-center mb-6">
+          <div class="text-6xl">🎮</div>
+          <div class="text-2xl font-semibold">Harga Permainan: <span class="text-orange-700">${formatMoney(price)}</span></div>
+        </div>
+        <div class="mb-6">
+          <h4 class="text-lg font-semibold mb-3">Pilih wang untuk bayar:</h4>
+          <div id="number-choices" class="flex flex-wrap justify-center gap-4">
+            ${options.map(opt => `
+              <div class="number-card money-token ${opt.value === 50 ? 'note-50' : 'note-20'}"
+                   draggable="true" ondragstart="dragStart(event)" ondragend="dragEnd(event)" 
+                   data-value="${opt.value}" data-enough="${opt.isEnough}">
+                ${opt.text}
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        <div>
+          <h4 class="text-lg font-semibold mb-3">Letak wang di kaunter:</h4>
+          <div class="flex justify-center">
+            <div class="drop-zone rounded-lg p-5 text-2xl font-bold" 
+                 ondrop="dropOnKaunterBayar(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)">
+              Kaunter
+            </div>
+          </div>
+        </div>`;
+    }
+    function dropOnKaunterBayar(e) {
+      e.preventDefault(); e.currentTarget.classList.remove('drag-over');
+      if (!draggedElement) return;
+      const isEnough = draggedElement.dataset.enough === 'true';
+      const value = draggedElement.dataset.value;
+      if (isEnough) {
+        e.currentTarget.innerHTML = formatMoney(value);
+        e.currentTarget.classList.add('drop-zone-filled');
+        e.currentTarget.removeAttribute('ondrop');
+        draggedElement.remove(); draggedElement = null;
+        const msg = `Betul! ${formatMoney(value)} cukup untuk bayar ${formatMoney(48.50)}.`;
+        setInfo(msg); speak(msg);
+        document.getElementById('number-choices').innerHTML = '<span class="text-lg text-gray-500">Selesai!</span>';
+      } else {
+        const msg = `Oh! ${formatMoney(value)} tidak cukup untuk bayar ${formatMoney(48.50)}.`;
+        setInfo(msg); speak(msg);
+        e.currentTarget.classList.add('shake'); setTimeout(()=>e.currentTarget.classList.remove('shake'),500);
+      }
+    }
+
+
+    /* ====== Aktiviti 5: Simulasi Beri Baki (PRO) (WANG) ====== */
+    function loadSimulasiBeriBakiActivity(content) {
+      const price = 12.50;
+      const paid = 20.00;
+      const correctBaki = (paid - price).toFixed(2); // 7.50
+      window.bakiGame = {
+        correctBaki: parseFloat(correctBaki),
+        bakiGiven: 0.00
+      };
+      const cashDrawer = [
+        { value: 5, text: "RM 5.00", class: "note-5" }, { value: 1, text: "RM 1.00", class: "note-1" },
+        { value: 1, text: "RM 1.00", class: "note-1" }, { value: 0.50, text: "50 sen", class: "coin" },
+        { value: 0.20, text: "20 sen", class: "coin" }, { value: 0.20, text: "20 sen", class: "coin" },
+        { value: 0.10, text: "10 sen", class: "coin" },
+      ].sort(()=>Math.random()-0.5);
+      setInfo(`Harga ${formatMoney(price)}, dibayar ${formatMoney(paid)}. Seret baki ${formatMoney(correctBaki)} ke tangan pelanggan.`);
+      content.innerHTML = `
+        <h3 class="text-2xl font-bold text-red-600 mb-4">5. Simulasi Beri Baki</h3>
+        <div class="text-center mb-4 p-4 bg-red-100 border-2 border-red-300 rounded-lg">
+          <div class="text-xl font-semibold">Harga Barang: ${formatMoney(price)}</div>
+          <div class="text-xl font-semibold">Wang Diterima: ${formatMoney(paid)}</div>
+          <div class="text-2xl font-bold text-red-800 mt-2">Baki Perlu Diberi: ${formatMoney(correctBaki)}</div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+          <div>
+            <h4 class="text-lg font-semibold mb-3 text-center">Laci Tunai (Pilih baki):</h4>
+            <div id="cash-drawer" class="flex flex-wrap justify-center gap-3 p-4 bg-gray-100 rounded-lg min-h-32">
+              ${cashDrawer.map((c, idx) => `
+                <div class="money-token ${c.class}"
+                     draggable="true" ondragstart="dragStart(event)" ondragend="dragEnd(event)"
+                     data-value="${c.value}" id="cash-${idx}">
+                  ${c.text}
+                </div>
+              `).join('')}
+            </div>
+          </div>
+          <div>
+            <h4 class="text-lg font-semibold mb-3 text-center">Tangan Pelanggan (Letak di sini):</h4>
+            <div id="baki-dropzone" class="drop-zone w-full p-4 bg-red-50 rounded-lg min-h-32"
+                 ondrop="dropOnBaki(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)">
+              <div id="baki-items" class="flex flex-wrap gap-2"></div>
+              <div id="baki-total" class="text-center text-xl font-bold mt-4 text-gray-700">
+                Baki Diberi: RM 0.00
+              </div>
+            </div>
+          </div>
+        </div>`;
+    }
+    function dropOnBaki(e) {
+      e.preventDefault(); e.currentTarget.classList.remove('drag-over', 'shake');
+      if (!draggedElement) return;
+      const value = parseFloat(draggedElement.dataset.value);
+      const { correctBaki } = window.bakiGame;
+      let bakiGiven = window.bakiGame.bakiGiven;
+      const newBaki = parseFloat((bakiGiven + value).toFixed(2));
+      if (newBaki > correctBaki) {
+        const msg = `Oh, terlebih! Baki hanya ${formatMoney(correctBaki)}.`;
+        setInfo(msg); speak(msg);
+        e.currentTarget.classList.add('shake');
+      } else {
+        window.bakiGame.bakiGiven = newBaki;
+        document.getElementById('baki-items').appendChild(draggedElement);
+        draggedElement.setAttribute('draggable', 'false');
+        draggedElement.classList.add('opacity-50', 'cursor-not-allowed');
+        document.getElementById('baki-total').textContent = `Baki Diberi: ${formatMoney(newBaki)}`;
+        draggedElement = null;
+        if (newBaki === correctBaki) {
+          const msg = `Syabas! Baki ${formatMoney(correctBaki)} diberi dengan betul!`;
+          setInfo(msg); speak(msg);
+          e.currentTarget.classList.add('drop-zone-filled');
+          document.getElementById('cash-drawer').innerHTML = '<span class="text-lg text-gray-500">Selesai!</span>';
+        } else {
+          const msg = `Baki diberi ${formatMoney(newBaki)}. Belum cukup.`;
+          setInfo(msg); speak(msg);
+        }
+      }
+    }
+
+
+    /* ====== Kawalan Umum ====== */
+    function clearActivity() {
+      currentActivity = 0;
+      document.getElementById('activity-content').innerHTML = `
+        <div class="text-center py-16">
+          <div class="text-6xl mb-4">🏦</div>
+          <h2 class="text-3xl font-bold text-gray-800 mb-4">Kemahiran Wang & Masa (Lanjutan)</h2>
+          <p class="text-xl text-gray-600 mb-8">3 aktiviti wang dan 2 aktiviti masa.</p>
+          <div class="text-4xl">👇</div>
+        </div>
+      `;
+      setInfo("Pilih aktiviti untuk menguji kemahiran lanjutan!");
+    }
+    function nextActivity() {
+      if (currentActivity === 0) return loadActivity(1);
+      if (currentActivity < 5) return loadActivity(currentActivity + 1);
+      return loadActivity(1);
+    }
+
+    // Kekalkan TTS resume
+    if ('speechSynthesis' in window) {
+      setInterval(() => { if (window.speechSynthesis.paused) window.speechSynthesis.resume(); }, 1000);
+    }
+  </script>
+</body>
+</html>
